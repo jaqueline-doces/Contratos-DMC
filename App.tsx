@@ -240,13 +240,24 @@ export default function App() {
         setIsLoading(true);
         const webhookUrl = "https://chatboy-n8n.9ejo0r.easypanel.host/webhook/docemomentos";
 
-        const payload = {
+        const payload: any = {
             ...data,
             whatsapp: `55${data.whatsapp.replace(/\D/g, '')}`,
             servicosDetalhes: formatServicesForWebhook(data),
         };
-        delete (payload as any).servicosQuantidades;
-        delete (payload as any).servicosQuantidadesCento;
+
+        if (data.servicosContratados && data.servicosContratados.length > 0) {
+            const firstService = data.servicosContratados[0];
+            if (data.modeloContratacao === 'À vontade') {
+                payload.QuantidadeHoras = data.servicosQuantidades?.[firstService] || null;
+            }
+            if (data.modeloContratacao === 'Cento') {
+                payload.QuantidadeCento = data.servicosQuantidadesCento?.[firstService] || null;
+            }
+        }
+        
+        delete payload.servicosQuantidades;
+        delete payload.servicosQuantidadesCento;
 
         try {
             const response = await fetch(webhookUrl, {
@@ -349,7 +360,8 @@ export default function App() {
                             
                             <InputField label="Endereço do Evento" name="enderecoEvento" placeholder="Endereço Completo" form={form} autoComplete="address-line1" />
                             <div>
-                                <InputField label="Endereço do Responsável" name="enderecoResidencial" placeholder="Endereço pessoal" form={form} disabled={sameAsEventAddress} value={sameAsEventAddress ? watchedEnderecoEvento : form.watch('enderecoResidencial')} autoComplete="address-line1" />
+{/* FIX: Removed redundant `value` prop; its logic is already handled by the checkbox's `onChange` which calls `form.setValue`. */}
+                                <InputField label="Endereço do Responsável" name="enderecoResidencial" placeholder="Endereço pessoal" form={form} disabled={sameAsEventAddress} autoComplete="address-line1" />
                                 <div className="flex items-center mt-2">
                                     <CustomCheckbox 
                                         id="same-address"
@@ -481,6 +493,8 @@ export default function App() {
 
 // --- REUSABLE FORM COMPONENTS ---
 // FIX: Refactor InputField to be strongly-typed and use the Controller's render prop to access field-specific errors.
+// FIX: Added 'form' to Omit to prevent type collision with the native 'form' attribute.
+// FIX: Ensured `field.value` is a string to avoid type errors with the <input> element's value prop.
 const InputField = ({ label, name, form, type = "text", placeholder, formatter, optional = false, ...props }: {
     label: string;
     name: Path<FormData>;
@@ -489,7 +503,7 @@ const InputField = ({ label, name, form, type = "text", placeholder, formatter, 
     placeholder?: string;
     formatter?: (value: string) => string;
     optional?: boolean;
-} & Omit<React.ComponentProps<'input'>, 'name'>) => {
+} & Omit<React.ComponentProps<'input'>, 'name' | 'form'>) => {
     return (
         <Controller
             name={name}
@@ -497,7 +511,7 @@ const InputField = ({ label, name, form, type = "text", placeholder, formatter, 
             render={({ field, fieldState: { error } }) => (
                 <div>
                     <label htmlFor={name} className="block text-sm font-normal text-gray-700">{label}: {!optional && <span className="text-red-500">*</span>}</label>
-                    <input {...field} {...props} id={name} type={type} placeholder={placeholder} onChange={(e) => field.onChange(formatter ? formatter(e.target.value) : e.target.value)} className={`mt-1 block w-full px-3 py-2 bg-white border-2 ${error ? 'border-red-500' : 'border-[#E9E5DD]'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm disabled:bg-gray-100`} />
+                    <input {...field} {...props} id={name} type={type} placeholder={placeholder} onChange={(e) => field.onChange(formatter ? formatter(e.target.value) : e.target.value)} value={(field.value as string) || ''} className={`mt-1 block w-full px-3 py-2 bg-white border-2 ${error ? 'border-red-500' : 'border-[#E9E5DD]'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm disabled:bg-gray-100`} />
                     {error && <p className="mt-1 text-sm text-red-600">{error.message}</p>}
                 </div>
             )}
@@ -506,6 +520,8 @@ const InputField = ({ label, name, form, type = "text", placeholder, formatter, 
 };
 
 // FIX: Refactor SelectField to be strongly-typed and use the Controller's render prop to access field-specific errors.
+// FIX: Added 'form' to Omit to prevent type collision with the native 'form' attribute.
+// FIX: Ensured `field.value` is a string to avoid type errors with the <select> element's value prop.
 const SelectField = ({ label, name, form, options, placeholder, optional = false, ...props }: {
     label: string;
     name: Path<FormData>;
@@ -513,7 +529,7 @@ const SelectField = ({ label, name, form, options, placeholder, optional = false
     options: { value: string, label: string }[];
     placeholder?: string;
     optional?: boolean;
-} & Omit<React.ComponentProps<'select'>, 'name'>) => {
+} & Omit<React.ComponentProps<'select'>, 'name' | 'form'>) => {
     return (
         <Controller
             name={name}
@@ -521,7 +537,7 @@ const SelectField = ({ label, name, form, options, placeholder, optional = false
             render={({ field, fieldState: { error } }) => (
                 <div>
                     <label htmlFor={name} className="block text-sm font-normal text-gray-700">{label}: {!optional && <span className="text-red-500">*</span>}</label>
-                    <select {...field} {...props} id={name} className={`mt-1 block w-full pl-3 pr-10 py-2 text-base border-2 ${error ? 'border-red-500' : 'border-[#E9E5DD]'} focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm rounded-md`}>
+                    <select {...field} {...props} id={name} value={(field.value as string) || ''} className={`mt-1 block w-full pl-3 pr-10 py-2 text-base border-2 ${error ? 'border-red-500' : 'border-[#E9E5DD]'} focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm rounded-md`}>
                         {placeholder && <option value="" disabled hidden>{placeholder}</option>}
                         {options.map((option: any) => (<option key={option.value} value={option.value}>{option.label}</option>))}
                     </select>
@@ -533,6 +549,9 @@ const SelectField = ({ label, name, form, options, placeholder, optional = false
 };
 
 // FIX: Refactor TextAreaField to be strongly-typed and use the Controller's render prop to access field-specific errors.
+// FIX: Added 'form' to Omit to prevent type collision with the native 'form' attribute.
+// FIX: Ensured `field.value` is a string to avoid type errors with the <textarea> element's value prop.
+// FIX: Corrected character counter to use `field.value` from the controller for accuracy and type safety.
 const TextAreaField = ({ label, name, form, placeholder, optional = false, formatter, ...props }: {
     label: string;
     name: Path<FormData>;
@@ -540,8 +559,7 @@ const TextAreaField = ({ label, name, form, placeholder, optional = false, forma
     placeholder?: string;
     optional?: boolean;
     formatter?: (value: string) => string;
-} & Omit<React.ComponentProps<'textarea'>, 'name'>) => {
-    const value = form.watch(name) || "";
+} & Omit<React.ComponentProps<'textarea'>, 'name' | 'form'>) => {
     return (
         <Controller
             name={name}
@@ -549,8 +567,8 @@ const TextAreaField = ({ label, name, form, placeholder, optional = false, forma
             render={({ field, fieldState: { error } }) => (
                 <div>
                     <label htmlFor={name} className="block text-sm font-normal text-gray-700">{label}: {optional && <span className="font-normal">(Opcional)</span>}</label>
-                    <textarea {...field} {...props} id={name} placeholder={placeholder} rows={4} maxLength={500} onChange={(e) => field.onChange(formatter ? formatter(e.target.value) : e.target.value)} className={`mt-1 block w-full px-3 py-2 bg-white border-2 ${error ? 'border-red-500' : 'border-[#E9E5DD]'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm`} />
-                    <div className="text-right text-xs text-gray-500 mt-1">{value.length}/500</div>
+                    <textarea {...field} {...props} id={name} placeholder={placeholder} rows={4} maxLength={500} onChange={(e) => field.onChange(formatter ? formatter(e.target.value) : e.target.value)} value={(field.value as string) || ''} className={`mt-1 block w-full px-3 py-2 bg-white border-2 ${error ? 'border-red-500' : 'border-[#E9E5DD]'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm`} />
+                    <div className="text-right text-xs text-gray-500 mt-1">{((field.value as string) || '').length}/500</div>
                     {error && <p className="mt-1 text-sm text-red-600">{error.message}</p>}
                 </div>
             )}
