@@ -1,0 +1,5 @@
+{
+  "name": "Doces Momentos Contract Generator",
+  "description": "A web application for customers of Doces Momentos to fill out their event and personal data to automatically generate a service contract. The form captures all necessary details and sends them to a webhook for processing.",
+  "requestFramePermissions": []
+}
